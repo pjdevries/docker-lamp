@@ -386,6 +386,11 @@ create_certs() {
 
     warn "Start creating SSL certificates:"
     for domain in $MINICA_DEFAULT_DOMAINS; do
+        if [[ -f $MINICA_BASEDIR/minica-root-ca.pem && -f $MINICA_BASEDIR/minica-root-ca-key.pem \
+                                  && -f $MINICA_BASEDIR/$domain/cert.pem && -f $MINICA_BASEDIR/$domain/key.pem ]]; then
+          continue;
+        fi
+
         info "Create certificate for:" "$domain"
         docker run --user $APP_USER_ID -it --rm \
             -v "$MINICA_BASEDIR:/certs" \
