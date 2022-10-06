@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Define debug mode.
-DEBUG=0
+DEBUG=${DOCKER_LAMP_DEBUG:-0}
 
 # Define the basedir for the docker compose.
 if [[ "$(command -v readlink >/dev/null 2>&1 ; echo $?)" -ne 0 ]]; then
