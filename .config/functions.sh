@@ -375,17 +375,32 @@ delete_obsolete_images() {
 
 create_certs() {
     local MINICA_BASEDIR="$APP_BASEDIR/ca"
+    local MINICA_DOMAINS=""
 
-    [ ! -z "$SSL_LOCALDOMAINS" ] \
-        && MINICA_DEFAULT_DOMAINS="$MINICA_DEFAULT_DOMAINS,$SSL_LOCALDOMAINS"
+    # If root ca does not exist, regenerate all certificates.
+    if [[ ! -f $MINICA_BASEDIR/minica-root-ca.pem || ! -f $MINICA_BASEDIR/minica-root-ca-key.pem ]]; then
+      rm -r "$MINICA_BASEDIR"/*
+    fi
 
-    [ ! -z "$SSL_DOMAINS" ] \
-        && MINICA_DEFAULT_DOMAINS="$MINICA_DEFAULT_DOMAINS $SSL_DOMAINS"
+    if [[ ! -f $MINICA_BASEDIR/localdomains/cert.pem || ! -f $MINICA_BASEDIR/localdomains/key.pem ]]; then
+      MINICA_DOMAINS="$MINICA_DEFAULT_DOMAINS"
 
-    MINICA_DEFAULT_DOMAINS="$(echo "$MINICA_DEFAULT_DOMAINS" | sed "s/, /,/g")"
+      if [ -n "$SSL_LOCALDOMAINS" ]; then
+        MINICA_DOMAINS="$MINICA_DOMAINS,$SSL_LOCALDOMAINS"
+      fi
+    fi
+
+    for domain in $SSL_DOMAINS; do
+        if [[ ! -f $MINICA_BASEDIR/$domain/cert.pem || ! -f $MINICA_BASEDIR/$domain/key.pem ]]; then
+          MINICA_DOMAINS="$MINICA_DOMAINS $domain"
+        fi
+    done
+
+    MINICA_DOMAINS="$(echo "$MINICA_DOMAINS" | sed "s/^[, ]//")"
+    MINICA_DOMAINS="$(echo "$MINICA_DOMAINS" | sed "s/, /,/g")"
 
     warn "Start creating SSL certificates:"
-    for domain in $MINICA_DEFAULT_DOMAINS; do
+    for domain in $MINICA_DOMAINS; do
         info "Create certificate for:" "$domain"
         docker run --user $APP_USER_ID -it --rm \
             -v "$MINICA_BASEDIR:/certs" \
