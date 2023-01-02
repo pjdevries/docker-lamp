@@ -286,7 +286,7 @@ start_server() {
     create_certs
 
     warn "Start server:"
-    $DOCKER_COMPOSE_CALL up -d --force-recreate \
+    $DOCKER_COMPOSE_CALL up -d --force-recreate --build \
         && success "Server started."
 
     [ -z "$_db_volume_exist" ] && restore_db
