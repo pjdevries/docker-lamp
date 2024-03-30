@@ -72,6 +72,7 @@ if [ ! "$(basename "$NEW_APP_BASEDIR")" = "$(basename "$APP_BASEDIR")" ] || [ ! 
 fi
 
 APP_BASEDIR=$NEW_APP_BASEDIR
+DOCKER_PASS_USER="$APP_USER_ID:$APP_GROUP_ID"
 
 DOCKER_COMPOSE_YAML="$ENV_FILE_BASEDIR/compose.yml"
 DOCKER_COMPOSE_CALL="docker compose --env-file $ENV_FILE -f $DOCKER_COMPOSE_YAML"
