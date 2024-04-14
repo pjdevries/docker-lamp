@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+#Wrapper for sendmail
+/bin/busybox sendmail -S mailcatcher:1025 -t "$2"

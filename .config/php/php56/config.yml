@@ -6,6 +6,7 @@
       - ${DATABASE_TO_USE}
       - mailcatcher
     volumes:
+      - ${DOCKER_LAMP_BASEDIR}/.config/php/sendmail/mhsendmail:/usr/local/bin/mhsendmail
       - ${DOCKER_LAMP_BASEDIR}/.config/php/php-fpm-global-overrides.conf:/usr/local/etc/php-fpm.d/zzz-php-fpm-global-overrides.conf:rw
       - ${DOCKER_LAMP_BASEDIR}/.config/php/php56/php-fpm-overrides.conf:/usr/local/etc/php-fpm.d/zzzz-php-fpm-overrides.conf:rw
       - ${DOCKER_LAMP_BASEDIR}/.config/php/php-global-overrides.ini:/usr/local/etc/php/conf.d/z00-php-global-overrides.ini:rw
