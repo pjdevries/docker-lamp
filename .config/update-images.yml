@@ -49,6 +49,9 @@ services:
   mysql83:
     image: degobbis/mysql83:latest
 
+  mysql84:
+    image: degobbis/mysql84:latest
+
   mailcatcher:
     image: dockage/mailcatcher:latest
 
