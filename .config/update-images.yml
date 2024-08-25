@@ -40,6 +40,9 @@ services:
   mariadb1011:
     image: degobbis/mariadb1011:latest
 
+  mariadb114:
+    image: degobbis/mariadb114:latest
+
   mysql57:
     image: degobbis/mysql57:latest
 
