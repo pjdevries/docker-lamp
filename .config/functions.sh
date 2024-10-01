@@ -390,11 +390,18 @@ create_certs() {
       fi
     fi
 
-    for domain in $SSL_DOMAINS; do
-        if [[ ! -f $MINICA_BASEDIR/$domain/cert.pem || ! -f $MINICA_BASEDIR/$domain/key.pem ]]; then
-          MINICA_DOMAINS="$MINICA_DOMAINS $domain"
-        fi
-    done
+#    for domain in $SSL_DOMAINS; do
+#        if [[ ! -f $MINICA_BASEDIR/$domain/cert.pem || ! -f $MINICA_BASEDIR/$domain/key.pem ]]; then
+#          MINICA_DOMAINS="$MINICA_DOMAINS $domain"
+#        fi
+#    done
+
+    if [ -f "${SSL_DOMAINS_FILE:-ssldomainsfile}" ]
+    then
+      MINICA_DOMAINS=$(moreSSLdomainsFromFile)
+    else
+      MINICA_DOMAINS=$(moreSSLdomains "$MINICA_DOMAINS")
+    fi
 
     MINICA_DOMAINS="$(echo "$MINICA_DOMAINS" | sed "s/^[, ]//")"
     MINICA_DOMAINS="$(echo "$MINICA_DOMAINS" | sed "s/, /,/g")"
@@ -412,6 +419,50 @@ create_certs() {
     done
 
     success "All certificates created."
+}
+
+moreSSLdomains() {
+  local domains="${MINICA_DOMAINS:-""}"
+
+  for domain in $SSL_DOMAINS; do
+    if [[ ! -f $MINICA_BASEDIR/$domain/cert.pem || ! -f $MINICA_BASEDIR/$domain/key.pem ]]; then
+      domains="$domains $domain"
+    fi
+  done
+
+  echo "$domains"
+}
+
+moreSSLdomainsFromFile() {
+  local domains="${MINICA_DOMAINS:-""}"
+
+  while read domain
+  do
+    if [[ ! -f $MINICA_BASEDIR/$domain/cert.pem || ! -f $MINICA_BASEDIR/$domain/key.pem ]]; then
+      domains="$domains $domain"
+    fi
+  done <$SSL_DOMAINS_FILE
+
+  echo "$domains"
+}
+
+extraHosts() {
+  if [ ! -f "${EXTRA_HOSTS_FILE:-noextrahostsfile}" ]
+  then
+    echo "$EXTRA_HOSTS"
+    return
+  fi
+
+  local hosts=""
+  local sep=""
+
+  while read line
+  do
+    hosts="${hosts}${sep}${line}=$REMOTE_HOST_IP"
+    sep=","
+  done <"$EXTRA_HOSTS_FILE"
+
+  echo "$hosts"
 }
 
 restore_db() {
@@ -447,6 +498,9 @@ cli_container() {
     local env=' -e XDEBUG_CONFIG= '
 
     [ "$CLI_CONTAINER" = "php80" ] && env+=' -e XDEBUG_SESSION=1 '
+    [ "$CLI_CONTAINER" = "php81" ] && env+=' -e XDEBUG_SESSION=1 '
+    [ "$CLI_CONTAINER" = "php82" ] && env+=' -e XDEBUG_SESSION=1 '
+    [ "$CLI_CONTAINER" = "php83" ] && env+=' -e XDEBUG_SESSION=1 '
 
     if [ "$CLI_CONTAINER" = "db" ]; then
         container_name="$DATABASE_TO_USE"
