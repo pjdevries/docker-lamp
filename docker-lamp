@@ -323,6 +323,8 @@ HTTPD_PORT_PHP81="8081"
 HTTPD_SSL_PORT_PHP81="8481"
 HTTPD_PORT_PHP82="8082"
 HTTPD_SSL_PORT_PHP82="8482"
+HTTPD_PORT_PHP83="8083"
+HTTPD_SSL_PORT_PHP83="8483"
 HTTPD_PORTS_LIST="80:$MAP_PORT_80 443:$MAP_PORT_443 8000:8000 8400:8400"
 
 # Define the LOAD_YAML variable with the base YAML-Config
@@ -334,6 +336,8 @@ HTTPD_LINKS_LIST="phpmyadmin"
 
 # Add mailhog YAML-Config to LOAD_YAML
 add_yaml_to_load mailhog
+
+EXTRA_HOSTS=$(extraHosts)
 
 # Add BIND support, if not disabled
 if [ -z "$BIND_OFF" ]; then
