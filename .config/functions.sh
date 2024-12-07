@@ -280,8 +280,21 @@ get_yaml_list() {
     printf "$list"
 }
 
+check_override_folders() {
+    local needed=("ca" "httpd/apache24" "initDB" "php/php56" "php/php74" "php/php80" "php/php81" "php/php82" "php/php83" "php/php84" )
+
+    for folder in "${needed[@]}"; do
+        if ! test -d "${APP_BASEDIR}/${folder}"; then
+            success "Create: ${APP_BASEDIR}/${folder}"
+            mkdir -p ${APP_BASEDIR}/${folder}
+        fi
+    done
+}
+
 start_server() {
     local _db_volume_exist=$(docker volume ls --filter=name=$COMPOSE_PROJECT_NAME | grep "${COMPOSE_PROJECT_NAME}_db-data-dir")
+
+    check_override_folders
 
     #if [ "$USE_BIND" -eq 1 ]; then
         create_certs
