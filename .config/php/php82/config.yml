@@ -1,7 +1,6 @@
   php82:
     image: degobbis/php82:latest
     container_name: ${COMPOSE_PROJECT_NAME}_php82
-    hostname: php82
     restart: unless-stopped
     links: ${DATABASE_LINKS}
       - mailcatcher
@@ -26,5 +25,7 @@
     networks:
       dlbridge:
         ipv4_address: ${DL_PHP82_IPv4}
+        aliases:
+          - php82
     dns:
       - ${DL_BIND_INTERNAL_IPv4:-}
