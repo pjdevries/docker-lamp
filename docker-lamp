@@ -343,7 +343,14 @@ HTTPD_PORTS_LIST="${HTTPD_PORTS_LIST} ${PMA_PORT}:8000 ${PMA_SSL_PORT}:8400"
 # Sort databases and remove duplicates
 DATABASE_TO_USE="$(echo $(echo ${DATABASE_TO_USE} | tr ' ' '\n' | sort -u | tr '\n' ' '))"
 # Define the database volumes (one for each)
-export DATABASE_VOLUMES=$(get_yaml_volumes "${DATABASE_TO_USE}")
+if [ -n "${DATABASE_BIND_MOUNT_PATH}" ]; then
+  # If we have a bind path, we don't have named database volumes
+  DATABASE_VOLUMES=""
+else
+  DATABASE_VOLUMES=$(get_yaml_volumes "${DATABASE_TO_USE}")
+fi
+
+export DATABASE_VOLUMES
 
 # Define the LOAD_YAML variable with the base YAML-Config
 add_yaml_to_load base
@@ -402,8 +409,15 @@ if [ "${NUM_DATABASES_TO_USE}" -ge 1 ]; then
     port_name="${var@U}_PORT"
 
     # Each database get his own volume with the database name
-    volume_name="${var@U}_DATA_VOLUME"
-    declare -g ${volume_name}="${var}"
+    volume_var_name="${var@U}_DATA_VOLUME"
+    volume_name=${var}
+
+    if [ -n "${DATABASE_BIND_MOUNT_PATH}" ]; then
+      # If we have a bind path, we prefix it to the volume name
+      volume_name="${DATABASE_BIND_MOUNT_PATH}/${volume_name}"
+    fi
+
+    declare -g ${volume_var_name}="${volume_name}"
 
     # Declare the database name as hostname
     hostname_aliases="${var@U}_ALIASES"
