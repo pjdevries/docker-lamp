@@ -408,7 +408,9 @@ start_server() {
         && success "Server started."
     info ""
 
-    iterate_databases "restore" "${_db_to_restore}"
+    if [ -n "${DATABASE_BIND_MOUNT_PATH}" ]; then
+      iterate_databases "restore" "${_db_to_restore}"
+    fi
 }
 
 restart_server() {
@@ -433,9 +435,11 @@ shutdown_server() {
         && warn "Server is not running." \
         && exit 0
 
-    [ -z "${SKIP_SAVE_DATABASES}" ] \
+    if [ -n "${DATABASE_BIND_MOUNT_PATH}" ]; then
+      [ -z "${SKIP_SAVE_DATABASES}" ] \
         && iterate_databases "save" \
         || success "Skip save database(s)."
+    fi
 
     warn "Shutdown server:"
     ${DOCKER_COMPOSE_CALL} down -v
