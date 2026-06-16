@@ -223,6 +223,7 @@ success() {
     tput setaf 2
     echo "$@"
     tput sgr 0
+    tput cnorm
 }
 
 headline() {
