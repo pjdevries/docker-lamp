@@ -122,6 +122,8 @@ case "$1" in
         shift
         ARGUMENT="$1"
         shift
+        LONG="databases:"
+        SHORT="d:"
        ;;
     save-db)
         [ "$2" = "--help" ] && usage $1 | more -d && exit 0
@@ -200,11 +202,6 @@ fi
 
 if [ "${COMMAND}" = "delete-obsolete-images" ]; then
     delete_obsolete_images
-    exit 0
-fi
-
-if [ "${COMMAND}" = "restore-db" ]; then
-    restore_db ${ARGUMENT}
     exit 0
 fi
 
@@ -311,8 +308,20 @@ if [ -n "$1" ]; then
     exit 1
 fi
 
+if [ "${COMMAND}" = "restore-db" ] || [ "${COMMAND}" = "save-db" ]; then
+    [ -z "${ARGUMENT}" ] \
+        && error "No database server given!" \
+        && warn "For help call '$0 ${COMMAND} --help'." \
+        && exit 1
+fi
+
+if [ "${COMMAND}" = "restore-db" ]; then
+    restore_db ${ARGUMENT} || exit 1
+    exit 0
+fi
+
 if [ "${COMMAND}" = "save-db" ]; then
-    save_db ${ARGUMENT}
+    save_db ${ARGUMENT} || exit 1
     exit 0
 fi
 

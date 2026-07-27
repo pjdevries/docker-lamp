@@ -547,11 +547,99 @@ create_certs() {
     info ""
 }
 
+# Name of the folder inside the dump directory, the dumps not to be restored are moved into.
+# It starts with a dot, so it is not matched by the glob over "/docker-entrypoint-initdb.d/*"
+# in the "restore-databases" script of the database container.
+DUMP_SKIP_FOLDER=".restore-skip"
+
+# Returns the database name for a dump file, by removing the ".sql" or ".sql.gz" extension.
+get_dump_db_name() {
+    local dump_name="$(basename "$1")"
+
+    dump_name="${dump_name%.gz}"
+
+    echo "${dump_name%.sql}"
+}
+
+# Moves the dumps back, that were set aside for a selective restore.
+# It is called by a trap as well, so it has to be idempotent.
+move_back_skipped_dumps() {
+    local skip_folder="$1"
+
+    [ ! -d "${skip_folder}" ] && return 0
+
+    local dump=""
+    for dump in "${skip_folder}"/*; do
+        [ -e "${dump}" ] && mv -f "${dump}" "$(dirname "${skip_folder}")/"
+    done
+
+    rmdir "${skip_folder}" 2>/dev/null
+
+    return 0
+}
+
+# Moves all dumps, that are not requested, into the skip folder, so that the "restore-databases"
+# script of the database container doesn't find them and only restores the requested databases.
+set_aside_unselected_dumps() {
+    local dump_dir="$1"
+    local databases="$2"
+    local skip_folder="${dump_dir}/${DUMP_SKIP_FOLDER}"
+
+    [ ! -d "${dump_dir}" ] \
+        && error "No dump directory found: '${dump_dir}'" && return 1
+
+    # Check all requested databases before moving anything.
+    local missing=""
+    local database=""
+    for database in ${databases}; do
+        [ ! -f "${dump_dir}/${database}.sql" ] && [ ! -f "${dump_dir}/${database}.sql.gz" ] \
+            && missing="${missing} ${database}"
+    done
+
+    if [ ! -z "${missing}" ]; then
+        error "No dump found in '${dump_dir}' for:" "$(echo ${missing})"
+        return 1
+    fi
+
+    mkdir -p "${skip_folder}" || return 1
+
+    local dump=""
+    local db_name=""
+    for dump in "${dump_dir}"/*.sql "${dump_dir}"/*.sql.gz "${dump_dir}"/*.sh; do
+        [ ! -f "${dump}" ] && continue
+
+        db_name="$(get_dump_db_name "${dump}")"
+
+        case " ${databases} " in
+            *" ${db_name} "*)
+                continue
+                ;;
+        esac
+
+        mv -f "${dump}" "${skip_folder}/" || return 1
+    done
+
+    return 0
+}
+
 restore_db() {
     local db_to_restore="$1"
+    local dump_dir="${APP_BASEDIR}/initDB/${db_to_restore}"
+    local skip_folder="${dump_dir}/${DUMP_SKIP_FOLDER}"
 
     [ -z "$(${DOCKER_COMPOSE_CALL} ps -q ${db_to_restore})" ] \
         && warn "Database server '$db_to_restore' is not running." && exit 0
+
+    # A previous run may have been interrupted before the dumps were moved back.
+    move_back_skipped_dumps "${skip_folder}"
+
+    # If databases are selected, all other dumps are set aside during the restore.
+    if [ ! -z "${DATABASES_TO_HANDLE}" ]; then
+        set_aside_unselected_dumps "${dump_dir}" "${DATABASES_TO_HANDLE}" \
+            || { move_back_skipped_dumps "${skip_folder}"; return 1; }
+
+        trap "move_back_skipped_dumps '${skip_folder}'" EXIT INT TERM
+    fi
 
     local shell="sh"
     case "${db_to_restore}" in
@@ -564,6 +652,10 @@ restore_db() {
     docker exec -it --privileged ${COMPOSE_PROJECT_NAME}_${db_to_restore} /usr/bin/env ${shell} -c "/usr/local/bin/restore-databases"
     info ""
 
+    if [ ! -z "${DATABASES_TO_HANDLE}" ]; then
+        trap - EXIT INT TERM
+        move_back_skipped_dumps "${skip_folder}"
+    fi
 }
 
 update_images() {
