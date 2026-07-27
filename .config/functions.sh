@@ -39,9 +39,14 @@ usage() {
     warn "cli <CONTAINER-NAME> [<parameters>][ '<COMMAND-TO-PASS>']"
     info "-> Uses 'docker exec -it <CONTAINER-NAME>' to launch into the cli in the container, or to execute the passed command."
     info "-> Use single quotes ' to pass the command to the container to be executed in it."
-#    echo
-#    warn "save-db <DB-NAME>"
-#    info "-> Uses 'docker compose down' to stop the server."
+    echo
+    warn "save-db <DB-SERVER> [<parameters>]"
+    info "-> Saves the databases of the given database server as sql files into 'initDB/<DB-SERVER>'."
+    info "-> Without '-d', all databases are saved and a confirmation is asked."
+    echo
+    warn "restore-db <DB-SERVER> [<parameters>]"
+    info "-> Restores the dumps from 'initDB/<DB-SERVER>' into the running database server."
+    info "-> Without '-d', all dumps are restored and a confirmation is asked."
     exit 0
 }
 
@@ -137,6 +142,73 @@ usage_stop() {
     echo
     warn "For more details about how to, use:"
     success "-> $(basename $0) save-db --help"
+    exit 0
+}
+
+usage_save-db() {
+    warn "Usage:"
+    success "-> $(basename $0) save-db <DB-SERVER> [<parameters>]"
+    echo
+    info "-> Saves the databases of the given database server as sql files into 'initDB/<DB-SERVER>'."
+    info "-> Use the service name from the yaml file for <DB-SERVER>, like 'mariadb1011' or 'mysql84'."
+    info_b "-> IMPORTANT: Existing dumps with the same name are overwritten."
+    echo
+    echo
+    warn "Parameters:"
+    echo
+    warn "-d, --databases="
+    info "-> Only the given databases are saved, instead of all databases of the server."
+    info "-> Put the value in quotes and separate multiple databases by space like 'db1 db2'."
+    echo
+    warn "-y, --yes"
+    info "-> Don't ask for confirmation, if all databases are about to be saved."
+    echo
+    warn "-a, --archive"
+    info "-> A copy of the saved databases is additionally archived in a subfolder within 'initDB/<DB-SERVER>'."
+    info "-> If '-f' is not set, the subfolder is named with the current date, in this format 'yyyy-mm-dd'."
+    echo
+    warn "-f, --archive-folder="
+    info "-> Set the subfolder within 'initDB/<DB-SERVER>', the databases are archived into."
+    echo
+    warn "--help"
+    info "-> Show this help."
+    echo
+    echo
+    info_b "Example:"
+    success "-> $(basename $0) save-db mariadb1011 -d 'joomla4 joomla5'"
+    info "-> Saves only the databases 'joomla4' and 'joomla5' into 'initDB/mariadb1011'."
+    echo
+    success "-> $(basename $0) save-db mariadb1011 -a"
+    info "-> Asks for confirmation, then saves all databases and archives a copy into 'initDB/mariadb1011/yyyy-mm-dd'."
+    exit 0
+}
+
+usage_restore-db() {
+    warn "Usage:"
+    success "-> $(basename $0) restore-db <DB-SERVER> [<parameters>]"
+    echo
+    info "-> Restores the dumps from 'initDB/<DB-SERVER>' into the running database server."
+    info "-> Use the service name from the yaml file for <DB-SERVER>, like 'mariadb1011' or 'mysql84'."
+    info_b "-> IMPORTANT: Every database with the same name as a dump is dropped and created again."
+    echo
+    echo
+    warn "Parameters:"
+    echo
+    warn "-d, --databases="
+    info "-> Only the dumps of the given databases are restored, instead of all dumps in the folder."
+    info "-> Put the value in quotes and separate multiple databases by space like 'db1 db2'."
+    info "-> The other dumps are moved into 'initDB/<DB-SERVER>/${DUMP_SKIP_FOLDER}' while restoring and moved back afterwards."
+    echo
+    warn "-y, --yes"
+    info "-> Don't ask for confirmation, if all dumps are about to be restored."
+    echo
+    warn "--help"
+    info "-> Show this help."
+    echo
+    echo
+    info_b "Example:"
+    success "-> $(basename $0) restore-db mariadb1011 -d 'joomla4'"
+    info "-> Restores only 'initDB/mariadb1011/joomla4.sql' into the database 'joomla4', leaving all other databases untouched."
     exit 0
 }
 
@@ -620,6 +692,61 @@ set_aside_unselected_dumps() {
     done
 
     return 0
+}
+
+# Asks for confirmation, before a command handles all databases of a server.
+# It is skipped, if databases are selected with "-d", or the confirmation is given with "-y".
+# $1 = "save" or "restore", $2 = the database server
+confirm_all_databases() {
+    local action="$1"
+    local db_server="$2"
+
+    [ "${SKIP_CONFIRMATION:-0}" -eq 1 ] && return 0
+    [ ! -z "${DATABASES_TO_HANDLE}" ] && return 0
+
+    local dump_dir="${APP_BASEDIR}/initDB/${db_server}"
+
+    echo
+    if [ "${action}" = "save" ]; then
+        warn "ALL databases of '${db_server}' are about to be saved into 'initDB/${db_server}'."
+        info "-> Every dump already there with the same name is overwritten."
+    else
+        warn "ALL dumps in 'initDB/${db_server}' are about to be restored into '${db_server}'."
+        info "-> Every database with the same name as a dump is dropped and created again."
+
+        local found=""
+        local dump=""
+        for dump in "${dump_dir}"/*.sql "${dump_dir}"/*.sql.gz; do
+            [ -f "${dump}" ] && found="${found} $(get_dump_db_name "${dump}")"
+        done
+
+        [ -z "${found}" ] \
+            && warn "No dumps found in '${dump_dir}'." \
+            && exit 0
+
+        info "-> Databases to restore:" "$(echo ${found})"
+    fi
+
+    info "-> Use '-d <db-name>' to handle single databases only, or '-y' to skip this question."
+    echo
+
+    [ ! -t 0 ] \
+        && error "No terminal available to ask for confirmation." \
+        && warn "Use '-y' to confirm all databases, or '-d' to select single databases." \
+        && exit 1
+
+    local answer=""
+    read -r -p "Continue with ALL databases? [y/N] " answer
+    echo
+
+    case "${answer}" in
+        j|J|y|Y|ja|Ja|yes|Yes|JA|YES)
+            return 0
+            ;;
+    esac
+
+    warn "Aborted, no database was touched."
+    exit 0
 }
 
 restore_db() {

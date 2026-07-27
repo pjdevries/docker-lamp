@@ -122,8 +122,8 @@ case "$1" in
         shift
         ARGUMENT="$1"
         shift
-        LONG="databases:"
-        SHORT="d:"
+        LONG="databases: yes"
+        SHORT="d: y"
        ;;
     save-db)
         [ "$2" = "--help" ] && usage $1 | more -d && exit 0
@@ -131,8 +131,8 @@ case "$1" in
         shift
         ARGUMENT="$1"
         shift
-        LONG="archive-folder: archive databases:"
-        SHORT="f: a d:"
+        LONG="archive-folder: archive databases: yes"
+        SHORT="f: a d: y"
        ;;
     cli)
         [ "$2" = "--help" ] && usage $1 | more -d && exit 0
@@ -281,6 +281,11 @@ while true; do
                 log "set DATABASES_TO_HANDLE to '$DATABASES_TO_HANDLE'"
                 shift 2
                 ;;
+            -y | --yes)
+                SKIP_CONFIRMATION=1
+                log "skip the confirmation for all databases"
+                shift
+                ;;
             -r | --as-root)
                 AS_ROOT="1"
                 log "enter CLI as root"
@@ -316,11 +321,13 @@ if [ "${COMMAND}" = "restore-db" ] || [ "${COMMAND}" = "save-db" ]; then
 fi
 
 if [ "${COMMAND}" = "restore-db" ]; then
+    confirm_all_databases "restore" "${ARGUMENT}"
     restore_db ${ARGUMENT} || exit 1
     exit 0
 fi
 
 if [ "${COMMAND}" = "save-db" ]; then
+    confirm_all_databases "save" "${ARGUMENT}"
     save_db ${ARGUMENT} || exit 1
     exit 0
 fi
