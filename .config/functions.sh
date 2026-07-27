@@ -469,9 +469,13 @@ save_db() {
     [ -z "$(${DOCKER_COMPOSE_CALL} ps -q ${db_to_save})" ] \
         && warn "Database server '${db_to_save}' is not running." && exit 0
 
-    local envs=""
-    [ "${ARCHIVE_DATABASES}" -eq 1 ] && env="-e ARCHIVE=1 "
-    [ ! -z "${ARCHIVE_FOLDER}" ] && env="${env}-e ARCHIVE_FOLDER=${ARCHIVE_FOLDER} "
+    # Use an array, while the value of "SAVE_DB" can contain spaces.
+    local -a envs=()
+    [ "${ARCHIVE_DATABASES:-0}" -eq 1 ] && envs+=(-e "ARCHIVE=1")
+    [ ! -z "${ARCHIVE_FOLDER}" ] && envs+=(-e "ARCHIVE_FOLDER=${ARCHIVE_FOLDER}")
+
+    # If databases are selected, only these are saved, otherwise all of them.
+    [ ! -z "${DATABASES_TO_HANDLE}" ] && envs+=(-e "SAVE_DB=${DATABASES_TO_HANDLE}")
 
     local shell="sh"
     case "${db_to_save}" in
@@ -481,7 +485,7 @@ save_db() {
     esac
 
     warn "Save databases for ${db_to_save}:"
-    docker exec -it --privileged ${envs}${COMPOSE_PROJECT_NAME}_${db_to_save} /usr/bin/env ${shell} -c "/usr/local/bin/backup-databases"
+    docker exec -it --privileged "${envs[@]}" ${COMPOSE_PROJECT_NAME}_${db_to_save} /usr/bin/env ${shell} -c "/usr/local/bin/backup-databases"
     info ""
 }
 

@@ -129,8 +129,8 @@ case "$1" in
         shift
         ARGUMENT="$1"
         shift
-        LONG="archive-folder: archive"
-        SHORT="f: a"
+        LONG="archive-folder: archive databases:"
+        SHORT="f: a d:"
        ;;
     cli)
         [ "$2" = "--help" ] && usage $1 | more -d && exit 0
@@ -277,6 +277,11 @@ while true; do
             -f | --archive-folder)
                 ARCHIVE_FOLDER="$2"
                 log "set ARCHIVE_FOLDER to '$2'"
+                shift 2
+                ;;
+            -d | --databases)
+                DATABASES_TO_HANDLE="$(echo "$2" | sed "s/, / /g" | sed "s/,/ /g" | xargs)"
+                log "set DATABASES_TO_HANDLE to '$DATABASES_TO_HANDLE'"
                 shift 2
                 ;;
             -r | --as-root)
